@@ -224,6 +224,32 @@ curl http://localhost:8082/api/v1/ops/status
 
 **See:** [Security & Compliance Documentation](docs/SECURITY_AND_COMPLIANCE.md) for complete details.
 
+### 🔍 Proof: Where Compliance Features Live
+
+**For Buyers:** Direct file paths to verify enterprise-grade claims.
+
+| Feature | Location | How to Verify |
+|---------|----------|---------------|
+| **Audit Logs** | `04-Control-Plane-Orchestrator/src/compliance/models.py` (lines 73-109)<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 427-476) | Database table: `audit_logs`<br>Every policy decision logged with full context |
+| **Domain Policies** | `04-Control-Plane-Orchestrator/src/compliance/models.py` (lines 28-71)<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 61-476) | Database table: `domain_policies`<br>Allowlist/denylist, rate limits, concurrency limits |
+| **Policy Enforcement** | `04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 61-476)<br>`04-Control-Plane-Orchestrator/src/control_plane/job_orchestrator.py` | Enforced at submission (line 61) and execution time (defense in depth) |
+| **Authorization Controls** | `04-Control-Plane-Orchestrator/src/compliance/models.py` (AuthorizationMode enum)<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 132-180) | Strategy restrictions by authorization mode (public/customer/internal) |
+| **Rate Limiting** | `02-Safety-Observability/src/targets/rate_limiter.py`<br>`04-Control-Plane-Orchestrator/src/compliance/policy_enforcer.py` (lines 181-250) | Redis-based counters with automatic expiration |
+| **Artifact Capture** | `02-Safety-Observability/src/artifacts/artifact_manager.py`<br>`02-Safety-Observability/src/artifacts/evidence_packager.py` | Screenshots, HTML snapshots, diffs stored in `artifacts/` directory |
+| **Retention Policy** | Database schema (Alembic migrations)<br>`04-Control-Plane-Orchestrator/alembic/versions/` | Audit logs: append-only (no deletion)<br>Jobs: configurable retention via database policies |
+
+**Quick Verification Commands:**
+```bash
+# View audit logs
+docker compose exec postgres psql -U postgres -d daemon_accord -c "SELECT * FROM audit_logs ORDER BY timestamp DESC LIMIT 10;"
+
+# View domain policies
+docker compose exec postgres psql -U postgres -d daemon_accord -c "SELECT domain, allowed, denied, rate_limit_per_minute, max_concurrent_jobs FROM domain_policies;"
+
+# View artifacts
+ls -la artifacts/
+```
+
 ### ✅ Production Validation
 
 - **Proof Pack:** End-to-end validation on any fresh VM
