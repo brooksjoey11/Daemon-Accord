@@ -1,0 +1,39 @@
+domain: twitter.com
+selectors:
+  tweet_box: '[data-testid=\"tweetTextarea_0\"]'
+  tweet_button: '[data-testid=\"tweetButton\"]'
+  follow_button: '[data-testid=\"followButton\"]'
+  like_button: '[data-testid=\"like\"]'
+  retweet_button: '[data-testid=\"retweet\"]'
+  search_input: '[data-testid=\"SearchBox_Search_Input\"]'
+  trends: '[data-testid=\"trend\"]'
+  messages: '[data-testid=\"messageEntry\"]'
+
+wait_strategies:
+  page_load: 10
+  element: 5
+  between_requests: 3
+  tweet_cooldown: 30
+  follow_cooldown: 60
+
+rate_limits:
+  domain_per_minute: 3
+  ip_per_hour: 50
+  concurrent: 10
+
+circuit_breaker_settings:
+  failure_thresholds: [3, 6, 12]
+  backoff_times: [1800, 10800, 43200]  # 30min, 3h, 12h
+  reset_timeout: 86400
+
+heuristics:
+  risk_level: high
+  requires_stealth: true
+  known_protections:
+    - twitter-api-limits
+    - bot-detection
+    - rate-limiting
+  bypass_patterns:
+    - api-v2-keys
+    - bearer-tokens
+    - user-agent-spoofing

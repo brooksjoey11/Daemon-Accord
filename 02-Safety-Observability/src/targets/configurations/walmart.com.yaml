@@ -1,0 +1,39 @@
+domain: walmart.com
+selectors:
+  search_input: '#global-search-input'
+  search_button: '.header-GlobalSearch-submit.btn'
+  product_title: 'h1.prod-ProductTitle'
+  price_main: '[data-automation-id="product-price"]'
+  add_to_cart: '[data-automation-id="add-to-cart"]'
+  checkout_button: '[data-automation-id="cta-top"]'
+  store_pickup: '#store-pickup'
+  inventory_status: '.prod-fulfillment-messaging-text'
+
+wait_strategies:
+  page_load: 10
+  element: 5
+  between_requests: 2
+  inventory_check: 1
+  cart_update: 1
+
+rate_limits:
+  domain_per_minute: 5
+  ip_per_hour: 100
+  concurrent: 15
+
+circuit_breaker_settings:
+  failure_thresholds: [5, 10, 20]
+  backoff_times: [1800, 7200, 28800]  # 30min, 2h, 8h
+  reset_timeout: 86400
+
+heuristics:
+  risk_level: medium
+  requires_stealth: false
+  known_protections:
+    - inventory-limits
+    - cart-protection
+    - bot-filtering
+  bypass_patterns:
+    - session-management
+    - cookie-persistence
+    - mobile-emulation

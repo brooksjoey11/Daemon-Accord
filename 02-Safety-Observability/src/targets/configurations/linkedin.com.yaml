@@ -1,0 +1,39 @@
+domain: linkedin.com
+selectors:
+  login_email: '#username'
+  login_password: '#password'
+  login_button: '.btn__primary--large'
+  profile_name: '.text-heading-xlarge'
+  connections: '.mn-connection-card'
+  search_input: '.search-global-typeahead__input'
+  job_listings: '.jobs-search-results__list-item'
+  message_input: '.msg-form__contenteditable'
+
+wait_strategies:
+  page_load: 10
+  element: 8
+  between_requests: 4
+  search_cooldown: 10
+  profile_view: 30
+
+rate_limits:
+  domain_per_minute: 2
+  ip_per_hour: 20
+  concurrent: 5
+
+circuit_breaker_settings:
+  failure_thresholds: [2, 4, 8]
+  backoff_times: [7200, 28800, 86400]  # 2h, 8h, 24h
+  reset_timeout: 172800
+
+heuristics:
+  risk_level: high
+  requires_stealth: true
+  known_protections:
+    - linkedin-anti-scraping
+    - session-tracking
+    - behavioral-analysis
+  bypass_patterns:
+    - human-like-intervals
+    - profile-completion
+    - connection-velocity

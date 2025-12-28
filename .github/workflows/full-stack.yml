@@ -1,0 +1,46 @@
+name: Full Stack Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch:
+
+jobs:
+  docker-compose-test:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v2
+    
+    - name: Build docker-compose stack
+      working-directory: 05-Deploy-Monitoring-Infra/src/deploy
+      run: |
+        docker-compose -f docker-compose.full.yml build --no-cache
+    
+    - name: Start services
+      working-directory: 05-Deploy-Monitoring-Infra/src/deploy
+      run: |
+        docker-compose -f docker-compose.full.yml up -d
+        sleep 30  # Wait for services to start
+    
+    - name: Check service health
+      run: |
+        curl -f http://localhost:8082/health || exit 1
+        curl -f http://localhost:8100/health || exit 1
+    
+    - name: Run E2E test
+      run: |
+        pip install httpx
+        python scripts/test_e2e_flow.py
+    
+    - name: Stop services
+      working-directory: 05-Deploy-Monitoring-Infra/src/deploy
+      if: always()
+      run: |
+        docker-compose -f docker-compose.full.yml down
+

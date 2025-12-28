@@ -1,0 +1,228 @@
+{
+  "info": {
+    "name": "Accord Engine - Control Plane API",
+    "description": "Complete API collection for Accord Engine Control Plane Orchestrator",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "version": "1.0.0"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": ["{{base_url}}"],
+              "path": ["health"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Jobs",
+      "item": [
+        {
+          "name": "Create Job - Navigate Extract",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "X-API-Key",
+                "value": "{{api_key}}",
+                "disabled": true
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selector\": \"h1\",\n  \"extract\": [\"text\"]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs?domain=example.com&url=https://example.com&job_type=navigate_extract&strategy=vanilla&priority=2",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs"],
+              "query": [
+                {
+                  "key": "domain",
+                  "value": "example.com"
+                },
+                {
+                  "key": "url",
+                  "value": "https://example.com"
+                },
+                {
+                  "key": "job_type",
+                  "value": "navigate_extract"
+                },
+                {
+                  "key": "strategy",
+                  "value": "vanilla"
+                },
+                {
+                  "key": "priority",
+                  "value": "2"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Job - Authenticate",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"form_selector\": \"#login-form\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs?domain=example.com&url=https://example.com/login&job_type=authenticate&strategy=stealth&priority=1",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs"],
+              "query": [
+                {
+                  "key": "domain",
+                  "value": "example.com"
+                },
+                {
+                  "key": "url",
+                  "value": "https://example.com/login"
+                },
+                {
+                  "key": "job_type",
+                  "value": "authenticate"
+                },
+                {
+                  "key": "strategy",
+                  "value": "stealth"
+                },
+                {
+                  "key": "priority",
+                  "value": "1"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Job - With Idempotency",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"selector\": \"h1\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs?domain=example.com&url=https://example.com&job_type=navigate_extract&idempotency_key=unique-key-123",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs"],
+              "query": [
+                {
+                  "key": "domain",
+                  "value": "example.com"
+                },
+                {
+                  "key": "url",
+                  "value": "https://example.com"
+                },
+                {
+                  "key": "job_type",
+                  "value": "navigate_extract"
+                },
+                {
+                  "key": "idempotency_key",
+                  "value": "unique-key-123"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Job Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/jobs/{{job_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "jobs", "{{job_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Queue",
+      "item": [
+        {
+          "name": "Get Queue Statistics",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/queue/stats",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "queue", "stats"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Root",
+      "item": [
+        {
+          "name": "Service Info",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/",
+              "host": ["{{base_url}}"],
+              "path": [""]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
+

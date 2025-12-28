@@ -1,0 +1,39 @@
+domain: gmail.com
+selectors:
+  email_input: '#identifierId'
+  password_input: 'input[type=\"password\"]'
+  next_button: '#identifierNext'
+  compose_button: '.T-I.T-I-KE.L3'
+  recipient_input: ':ro'
+  subject_input: 'input[name=\"subjectbox\"]'
+  body_input: 'div[aria-label=\"Message Body\"]'
+  send_button: 'div[data-tooltip=\"Send ‪(Ctrl-Enter)‬\"]'
+
+wait_strategies:
+  page_load: 15
+  element: 10
+  between_requests: 5
+  email_cooldown: 60
+  login_flow: 2
+
+rate_limits:
+  domain_per_minute: 1
+  ip_per_hour: 10
+  concurrent: 3
+
+circuit_breaker_settings:
+  failure_thresholds: [1, 2, 3]
+  backoff_times: [10800, 43200, 172800]  # 3h, 12h, 48h
+  reset_timeout: 259200
+
+heuristics:
+  risk_level: critical
+  requires_stealth: true
+  known_protections:
+    - google-advanced-protection
+    - captcha-v3
+    - two-factor-auth
+  bypass_patterns:
+    - oauth-integration
+    - app-passwords
+    - session-cookies

@@ -1,0 +1,162 @@
+# docker-compose.prod-enterprise.yml - Production Environment (Enterprise Tier)
+# Optimized for 32GB+ RAM machines with maximum performance and scalability
+version: '3.8'
+
+services:
+  # Redis
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 2gb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-accord_engine}
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+        reservations:
+          memory: 4G
+    command: >
+      postgres
+      -c shared_buffers=2GB
+      -c effective_cache_size=6GB
+      -c maintenance_work_mem=512MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=64MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=64MB
+      -c min_wal_size=4GB
+      -c max_wal_size=16GB
+      -c max_connections=200
+
+  # Core Execution Engine
+  execution-engine:
+    build:
+      context: ./01-Core-Execution-Engine
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-accord_engine}
+      # ENTERPRISE TIER: 10 browser instances for high throughput
+      MAX_BROWSERS: ${MAX_BROWSERS:-10}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./artifacts:/app/artifacts
+    ports:
+      - "${EXECUTION_ENGINE_PORT:-8081}:8080"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 12G
+        reservations:
+          memory: 6G
+    # Scale horizontally if needed
+    # deploy:
+    #   replicas: 2
+
+  # Control Plane
+  control-plane:
+    build:
+      context: ./04-Control-Plane-Orchestrator
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-accord_engine}
+      # ENTERPRISE TIER: 5 workers, high concurrency
+      MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-100}
+      WORKER_COUNT: ${WORKER_COUNT:-5}
+      API_HOST: 0.0.0.0
+      API_PORT: 8080
+      SKIP_INIT_MODELS: ${SKIP_INIT_MODELS:-true}
+      MEMORY_SERVICE_URL: ${MEMORY_SERVICE_URL:-http://memory-service:8100}
+      ENABLE_AUTH: ${ENABLE_AUTH:-true}
+      API_KEY: ${API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${CONTROL_PLANE_PORT:-8082}:8080"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Memory Service (Enabled and optimized for enterprise tier)
+  memory-service:
+    build:
+      context: ./03-Intelligence-Memory-Service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-accord_engine}
+      REDIS_URL: redis://redis:6379/0
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${MEMORY_SERVICE_PORT:-8100}:8100"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+volumes:
+  redis_data:
+  postgres_data:
+
+# Enterprise Tier Environment Variables:
+# MAX_BROWSERS=10             # Ten browser instances (default: 10)
+# WORKER_COUNT=5              # Five worker processes (default: 5)
+# MAX_CONCURRENT_JOBS=100    # High concurrency (default: 100)
+# SKIP_INIT_MODELS=true       # Use migrations in production (default: true)
+# ENABLE_AUTH=true            # API key authentication enabled (default: true)
+# MEMORY_SERVICE_URL=http://memory-service:8100  # AI/ML features enabled
+

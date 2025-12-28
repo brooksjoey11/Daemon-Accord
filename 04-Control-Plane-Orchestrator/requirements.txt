@@ -1,0 +1,45 @@
+# Control Plane Orchestrator Requirements
+# Python 3.11+
+
+# FastAPI and web server
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.5.0
+pydantic-settings>=2.2.1
+
+# Database
+sqlmodel>=0.0.14
+asyncpg>=0.29.0
+alembic>=1.13.2
+
+# Redis
+redis>=5.0.1
+
+# Logging
+structlog>=25.0.0
+
+# HTTP client (for Memory Service integration)
+httpx>=0.24.1
+
+# Performance
+orjson>=3.10.0
+uvloop>=0.19.0 ; sys_platform != "win32"
+
+# Observability
+prometheus-client>=0.20.0
+opentelemetry-sdk>=1.25.0
+opentelemetry-instrumentation-fastapi>=0.46b0
+opentelemetry-exporter-otlp>=1.25.0
+
+# Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.2
+pytest-cov>=4.1.0
+pytest-mock>=3.12.0
+testcontainers>=4.7.1
+httpx>=0.24.1  # For API testing
+faker>=19.0.0  # For test data generation
+
+# Load Testing
+locust>=2.20.0  # For performance validation
+

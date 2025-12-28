@@ -1,0 +1,143 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  test:
+    name: Run Tests
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: test_accord_engine
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Cache pip packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.cache/pip
+        key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+        restore-keys: |
+          ${{ runner.os }}-pip-
+    
+    - name: Install dependencies
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run linting
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        pip install black mypy pylint
+        black --check src/ tests/
+        mypy src/ --ignore-missing-imports || true
+        pylint src/ --disable=all --enable=errors || true
+    
+    - name: Run unit tests
+      working-directory: 04-Control-Plane-Orchestrator
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_accord_engine
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        pytest tests/unit/ -v --cov=src --cov-report=xml --cov-report=term-missing
+    
+    - name: Run integration tests
+      working-directory: 04-Control-Plane-Orchestrator
+      env:
+        DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/test_accord_engine
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        pytest tests/integration/ -v
+    
+    - name: Check coverage
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        pytest tests/ --cov=src --cov-report=term --cov-fail-under=60
+    
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./04-Control-Plane-Orchestrator/coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install safety
+      run: pip install safety
+    
+    - name: Run safety check
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        pip install -r requirements.txt
+        safety check --json || true
+    
+    - name: Run pip-audit
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        pip install pip-audit
+        pip-audit --requirement requirements.txt || true
+
+  build:
+    name: Build Docker Image
+    runs-on: ubuntu-latest
+    needs: [test]
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v3
+    
+    - name: Build Docker image
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        docker build -t control-plane:test .
+    
+    - name: Test Docker image
+      run: |
+        docker run --rm control-plane:test python -c "import src.main; print('Import successful')"
+

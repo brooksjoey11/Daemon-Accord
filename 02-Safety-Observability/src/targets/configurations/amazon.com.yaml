@@ -1,0 +1,40 @@
+domain: amazon.com
+selectors:
+  product_title: '#productTitle'
+  price: '.a-price-whole'
+  add_to_cart: '#add-to-cart-button'
+  checkout: '#sc-buy-box-ptc-button'
+  search_input: '#twotabsearchtextbox'
+  search_button: '#nav-search-submit-button'
+  pagination_next: '.s-pagination-next'
+  review_stars: '.a-icon-alt'
+  product_images: '#landingImage'
+
+wait_strategies:
+  page_load: 15
+  element: 10
+  between_requests: 3
+  search_cooldown: 5
+  purchase_flow: 2
+
+rate_limits:
+  domain_per_minute: 3
+  ip_per_hour: 50
+  concurrent: 10
+
+circuit_breaker_settings:
+  failure_thresholds: [2, 4, 8]
+  backoff_times: [1800, 10800, 43200]  # 30min, 3h, 12h
+  reset_timeout: 86400
+
+heuristics:
+  risk_level: high
+  requires_stealth: true
+  known_protections:
+    - amazon-captcha
+    - robot-check
+    - purchase-verification
+  bypass_patterns:
+    - user-agent-rotation
+    - residential-proxies
+    - session-persistence

@@ -1,0 +1,33 @@
+name: Lint
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+    
+    - name: Install linting dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install black pylint mypy
+    
+    - name: Lint Control Plane
+      working-directory: 04-Control-Plane-Orchestrator
+      run: |
+        pip install -r requirements.txt
+        black --check src/ tests/
+        pylint src/ tests/ --disable=C,R,W0613
+        mypy src/ --ignore-missing-imports
+

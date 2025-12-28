@@ -1,0 +1,161 @@
+# docker-compose.prod.yml - Production Environment
+# Optimized for 8GB RAM machines with low-resource mode
+version: '3.8'
+
+services:
+  # Redis
+  redis:
+    image: redis:7-alpine
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  # PostgreSQL
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-accord_engine}
+      # Low-resource PostgreSQL settings
+      POSTGRES_INITDB_ARGS: "-E UTF8"
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    command: >
+      postgres
+      -c shared_buffers=128MB
+      -c effective_cache_size=512MB
+      -c maintenance_work_mem=64MB
+      -c checkpoint_completion_target=0.9
+      -c wal_buffers=16MB
+      -c default_statistics_target=100
+      -c random_page_cost=1.1
+      -c effective_io_concurrency=200
+      -c work_mem=16MB
+      -c min_wal_size=1GB
+      -c max_wal_size=4GB
+
+  # Core Execution Engine
+  execution-engine:
+    build:
+      context: ./01-Core-Execution-Engine
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-accord_engine}
+      # LOW-RESOURCE MODE: Single browser instance
+      MAX_BROWSERS: ${MAX_BROWSERS:-1}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./artifacts:/app/artifacts
+    ports:
+      - "${EXECUTION_ENGINE_PORT:-8081}:8080"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  # Control Plane
+  control-plane:
+    build:
+      context: ./04-Control-Plane-Orchestrator
+      dockerfile: Dockerfile
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-accord_engine}
+      # LOW-RESOURCE MODE: Single worker, low concurrency
+      MAX_CONCURRENT_JOBS: ${MAX_CONCURRENT_JOBS:-10}
+      WORKER_COUNT: ${WORKER_COUNT:-1}
+      API_HOST: 0.0.0.0
+      API_PORT: 8080
+      SKIP_INIT_MODELS: ${SKIP_INIT_MODELS:-true}
+      # Optional: Memory Service integration
+      MEMORY_SERVICE_URL: ${MEMORY_SERVICE_URL:-}
+      # Optional: Authentication
+      ENABLE_AUTH: ${ENABLE_AUTH:-false}
+      API_KEY: ${API_KEY:-}
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${CONTROL_PLANE_PORT:-8082}:8080"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  # Memory Service (Optional - can be disabled for low-resource mode)
+  memory-service:
+    build:
+      context: ./03-Intelligence-Memory-Service
+      dockerfile: Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-accord_engine}
+      REDIS_URL: redis://redis:6379/0
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_KEY: ${SUPABASE_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${MEMORY_SERVICE_PORT:-8100}:8100"
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    profiles:
+      - memory-service  # Use --profile memory-service to enable
+
+volumes:
+  redis_data:
+  postgres_data:
+
+# Low-Resource Mode Environment Variables:
+# MAX_BROWSERS=1              # Single browser instance (default: 1)
+# WORKER_COUNT=1              # Single worker process (default: 1)
+# MAX_CONCURRENT_JOBS=10      # Low concurrency limit (default: 10)
+# SKIP_INIT_MODELS=true       # Use migrations in production (default: true)
+
