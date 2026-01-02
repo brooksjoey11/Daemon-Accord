@@ -1,0 +1,40 @@
+substitutions:
+  _REGION: us-central1
+  _AR_REPO: daemon-accord
+  _TAG: $SHORT_SHA
+
+steps:
+  # Build: execution-engine
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/execution-engine:${_TAG}
+      - -f
+      - 01-Core-Execution-Engine/Dockerfile
+      - 01-Core-Execution-Engine
+
+  # Build: control-plane
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/control-plane:${_TAG}
+      - -f
+      - 04-Control-Plane-Orchestrator/Dockerfile
+      - 04-Control-Plane-Orchestrator
+
+  # Build: memory-service (optional component, but image can still be produced)
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -t
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/memory-service:${_TAG}
+      - -f
+      - 03-Intelligence-Memory-Service/Dockerfile
+      - 03-Intelligence-Memory-Service
+
+images:
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/execution-engine:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/control-plane:${_TAG}
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_AR_REPO}/memory-service:${_TAG}
